@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Short and Long U Word Sort</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Comic Neue', cursive, sans-serif;
+            background-color: #f0fdf4; /* Light green background */
+        }
+        
+        .draggable {
+            cursor: grab;
+            user-select: none;
+            touch-action: none; /* Important for touch devices */
+        }
+
+        .draggable:active {
+            cursor: grabbing;
+        }
+
+        .dragging {
+            opacity: 0.5;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 1000;
+        }
+        
+        .dropzone {
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .dropzone.drag-over {
+            background-color: #e0f2fe; /* Light blue when hovering over */
+            border-color: #3b82f6; /* Blue border */
+        }
+
+        /* Success/Error animations */
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .correct-drop {
+            animation: popIn 0.3s ease-out;
+            background-color: #dcfce7 !important; /* Green for correct */
+            border-color: #22c55e !important;
+            color: #166534;
+        }
+        
+        .incorrect-drop {
+            animation: shake 0.4s ease-in-out;
+            background-color: #fee2e2 !important; /* Red for incorrect */
+            border-color: #ef4444 !important;
+            color: #991b1b;
+        }
+
+        /* Confetti Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
+    
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border-4 border-emerald-400">
+        
+        <!-- Header Section -->
+        <div class="bg-emerald-500 text-white p-6 text-center rounded-t-xl">
+            <h1 class="text-4xl font-bold mb-2 tracking-wide">Vowel Sort: Short U vs. Long U</h1>
+            <p class="text-lg opacity-90">Drag and drop the Grade 4 academic words into the correct columns!</p>
+            <div class="mt-4 flex justify-center gap-4 text-sm font-medium">
+                <span class="bg-emerald-600 px-3 py-1 rounded-full shadow-inner text-emerald-50">
+                    <strong>Short ŭ:</strong> Sounds like "sun" (ŭ)
+                </span>
+                <span class="bg-emerald-600 px-3 py-1 rounded-full shadow-inner text-emerald-50">
+                    <strong>Long ū:</strong> Sounds like "yoo" or "oo" (ū)
+                </span>
+            </div>
+        </div>
+
+        <div class="p-6 md:p-8">
+            
+            <!-- Score & Instructions -->
+            <div class="flex justify-between items-center mb-6 border-b-2 border-emerald-100 pb-4">
+                <p class="text-gray-600 font-semibold text-lg">Sort the remaining words below:</p>
+                <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-bold shadow-sm">
+                    Score: <span id="score-display">0</span> / <span id="total-words">0</span>
+                </div>
+            </div>
+
+            <!-- Word Bank Container (Source) -->
+            <div id="word-bank" class="min-h-[100px] bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 p-4 mb-8 flex flex-wrap gap-3 justify-center items-center dropzone" data-target="bank">
+                <!-- Words will be injected here by JS -->
+            </div>
+
+            <!-- Sorting Columns Container -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Short U Column -->
+                <div class="flex flex-col bg-emerald-50 rounded-xl border-2 border-emerald-200 overflow-hidden shadow-sm">
+                    <div class="bg-emerald-200 py-3 text-center border-b-2 border-emerald-300">
+                        <h2 class="text-xl font-bold text-emerald-800 flex items-center justify-center gap-2">
+                            <span>☀️</span> Short "u" 
+                        </h2>
+                        <p class="text-xs text-emerald-700 mt-1">(e.g., function, subtract)</p>
+                    </div>
+                    <div id="short-u-zone" class="dropzone p-4 min-h-[250px] flex flex-col gap-2 transition-colors flex-grow" data-target="short">
+                        <!-- Short U words go here -->
+                    </div>
+                </div>
+
+                <!-- Long U Column -->
+                <div class="flex flex-col bg-purple-50 rounded-xl border-2 border-purple-200 overflow-hidden shadow-sm">
+                    <div class="bg-purple-200 py-3 text-center border-b-2 border-purple-300">
+                        <h2 class="text-xl font-bold text-purple-800 flex items-center justify-center gap-2">
+                            <span>🦄</span> Long "u"
+                        </h2>
+                        <p class="text-xs text-purple-700 mt-1">(e.g., uniform, calculate)</p>
+                    </div>
+                    <div id="long-u-zone" class="dropzone p-4 min-h-[250px] flex flex-col gap-2 transition-colors flex-grow" data-target="long">
+                        <!-- Long U words go here -->
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Controls -->
+            <div class="mt-8 flex justify-center gap-4">
+                 <button id="reset-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg shadow transition-colors duration-200 hidden">
+                    Play Again
+                </button>
+            </div>
+            
+             <!-- Message Area -->
+             <div id="message-area" class="mt-4 text-center text-xl font-bold h-8 text-emerald-600 hidden">
+                Great job! You sorted all the words!
+             </div>
+
+        </div>
+    </div>
+
+<script>
+    // --- Data: Grade 4 Academic Words ---
+    // Categorized by their primary 'u' sound focus.
+    const wordData = [
+        // Short U
+        { text: 'function', type: 'short', id: 'word-1' },
+        { text: 'subtract', type: 'short', id: 'word-2' },
+        { text: 'structure', type: 'short', id: 'word-3' }, // Focus on first 'u'
+        { text: 'summary', type: 'short', id: 'word-4' },
+        { text: 'construct', type: 'short', id: 'word-5' },
+        { text: 'culture', type: 'short', id: 'word-6' }, // Focus on first 'u'
+        { text: 'publish', type: 'short', id: 'word-7' },
+        { text: 'result', type: 'short', id: 'word-8' },
+        
+        // Long U (yoo or oo)
+        { text: 'uniform', type: 'long', id: 'word-9' },
+        { text: 'calculate', type: 'long', id: 'word-10' }, // Focus on 'u'
+        { text: 'volume', type: 'long', id: 'word-11' },
+        { text: 'compute', type: 'long', id: 'word-12' },
+        { text: 'assume', type: 'long', id: 'word-13' },
+        { text: 'future', type: 'long', id: 'word-14' }, // Focus on first 'u'
+        { text: 'conclude', type: 'long', id: 'word-15' },
+        { text: 'unique', type: 'long', id: 'word-16' }
+    ];
+
+    // --- State Variables ---
+    let score = 0;
+    const totalWords = wordData.length;
+    let draggedElement = null;
+    let placeholder = null; // Used for smoother drag and drop visualization
+
+    // --- DOM Elements ---
+    const wordBank = document.getElementById('word-bank');
+    const shortUZone = document.getElementById('short-u-zone');
+    const longUZone = document.getElementById('long-u-zone');
+    const scoreDisplay = document.getElementById('score-display');
+    const totalDisplay = document.getElementById('total-words');
+    const messageArea = document.getElementById('message-area');
+    const resetBtn = document.getElementById('reset-btn');
+    const dropzones = document.querySelectorAll('.dropzone');
+
+    // --- Initialization ---
+    function initGame() {
+        // Reset state
+        score = 0;
+        scoreDisplay.textContent = score;
+        totalDisplay.textContent = totalWords;
+        messageArea.classList.add('hidden');
+        resetBtn.classList.add('hidden');
+        
+        // Clear containers
+        wordBank.innerHTML = '';
+        shortUZone.innerHTML = '';
+        longUZone.innerHTML = '';
+
+        // Shuffle words
+        const shuffledWords = [...wordData].sort(() => Math.random() - 0.5);
+
+        // Create word elements and add to bank
+        shuffledWords.forEach(word => {
+            const wordEl = createWordElement(word);
+            wordBank.appendChild(wordEl);
+        });
+
+        // Setup dropzones
+        setupDropzones();
+    }
+
+    // --- Helper: Create a Draggable Word Element ---
+    function createWordElement(word) {
+        const el = document.createElement('div');
+        el.textContent = word.text;
+        el.id = word.id;
+        el.dataset.type = word.type; // Store correct answer type
+        el.draggable = true;
+        
+        // Base styling for words
+        el.className = 'draggable inline-block bg-white border-2 border-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm hover:shadow-md hover:border-blue-400 transition-all text-lg mb-2';
+        
+        // Add event listeners for Drag and Drop API
+        el.addEventListener('dragstart', handleDragStart);
+        el.addEventListener('dragend', handleDragEnd);
+
+        // Touch support using basic touch events for dragging (simplified for this demo context)
+        // For robust touch D&D, libraries or more complex polyfills are usually better,
+        // but this provides basic tap-to-select/tap-to-place fallback if true drag fails.
+        setupTouchEvents(el);
+
+        return el;
+    }
+
+    // --- Drag and Drop Handlers ---
+    function handleDragStart(e) {
+        draggedElement = this;
+        // Use timeout to hide original while dragging but keep space
+        setTimeout(() => this.classList.add('opacity-0'), 0);
+        
+        e.dataTransfer.effectAllowed = 'move';
+        // Needs to set some data for Firefox to allow dragging
+        e.dataTransfer.setData('text/plain', this.id);
+        
+        this.classList.add('dragging');
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        this.classList.remove('opacity-0');
+        draggedElement = null;
+        
+        // Remove hover effects from all zones
+        dropzones.forEach(zone => zone.classList.remove('drag-over'));
+    }
+
+    function setupDropzones() {
+        dropzones.forEach(zone => {
+            zone.addEventListener('dragover', handleDragOver);
+            zone.addEventListener('dragenter', handleDragEnter);
+            zone.addEventListener('dragleave', handleDragLeave);
+            zone.addEventListener('drop', handleDrop);
+        });
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault(); // Necessary to allow dropping
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDragEnter(e) {
+        e.preventDefault();
+        // Only highlight columns, not the bank if we are moving from bank
+        if (this.id !== 'word-bank' || (draggedElement && draggedElement.parentElement !== this)) {
+             this.classList.add('drag-over');
+        }
+    }
+
+    function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('drag-over');
+
+        if (!draggedElement) return;
+
+        const targetType = this.dataset.target;
+        const wordType = draggedElement.dataset.type;
+        const currentContainer = draggedElement.parentElement;
+
+        // Don't do anything if dropping in the same container (unless it's the bank rearranging, but we'll ignore that for simplicity)
+        if (currentContainer === this) return;
+
+        // If moving back to the bank, always allow it (resets styling)
+        if (targetType === 'bank') {
+            resetWordStyling(draggedElement);
+            this.appendChild(draggedElement);
+            updateScore(-1); // Decrease score if moved back
+            return;
+        }
+
+        // Logic for dropping into short/long columns
+        if (targetType === 'short' || targetType === 'long') {
+            
+            // Check if it's correct
+            if (targetType === wordType) {
+                // Correct!
+                markCorrect(draggedElement);
+                this.appendChild(draggedElement);
+                
+                // Only increment score if it was previously in the bank
+                if (currentContainer.id === 'word-bank') {
+                    updateScore(1);
+                }
+            } else {
+                // Incorrect
+                markIncorrect(draggedElement);
+                // Temporarily append to show error, then move back
+                this.appendChild(draggedElement);
+                
+                // Shake effect and move back to bank
+                setTimeout(() => {
+                    resetWordStyling(draggedElement);
+                    wordBank.appendChild(draggedElement);
+                }, 500); // Wait for shake animation to roughly finish
+            }
+        }
+        
+        checkWinCondition();
+    }
+
+    // --- Styling Updates ---
+    function markCorrect(el) {
+        // Remove base classes that clash
+        el.className = 'draggable block w-full text-center font-bold py-2 px-4 rounded-lg shadow-sm mb-2 transition-all correct-drop';
+        // Make it non-draggable once correct? (Optional, let's keep it draggable in case they want to move it back)
+        // el.draggable = false; 
+    }
+
+    function markIncorrect(el) {
+        el.className = 'draggable block w-full text-center font-bold py-2 px-4 rounded-lg shadow-sm mb-2 transition-all incorrect-drop';
+    }
+
+    function resetWordStyling(el) {
+        el.className = 'draggable inline-block bg-white border-2 border-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm hover:shadow-md hover:border-blue-400 transition-all text-lg mb-2 mx-1';
+    }
+
+    // --- Game Logic ---
+    function updateScore(change) {
+        // Prevent negative score
+        score = Math.max(0, score + change);
+        scoreDisplay.textContent = score;
+    }
+
+    function checkWinCondition() {
+        if (score === totalWords) {
+            messageArea.classList.remove('hidden');
+            resetBtn.classList.remove('hidden');
+            fireConfetti();
+        }
+    }
+
+    // --- Touch Support (Basic Tap-to-Move as fallback) ---
+    // On touch devices, dragging can be finicky. Let's add a feature where tapping
+    // a word selects it, then tapping a column moves it there.
+    let selectedForTouch = null;
+
+    function setupTouchEvents(el) {
+        el.addEventListener('touchstart', function(e) {
+            // Prevent default to stop scrolling while trying to drag/tap
+            // e.preventDefault(); 
+            
+            // If dragging isn't working well, we fallback to select-then-tap-destination
+            if (selectedForTouch) {
+                selectedForTouch.classList.remove('ring-4', 'ring-blue-400');
+            }
+            
+            if (selectedForTouch === this) {
+                // Deselect if tapped again
+                selectedForTouch = null;
+            } else {
+                selectedForTouch = this;
+                this.classList.add('ring-4', 'ring-blue-400');
+            }
+        }, {passive: true});
+    }
+
+    // Add touch listeners to dropzones for the tap-to-move fallback
+    dropzones.forEach(zone => {
+        zone.addEventListener('touchend', function(e) {
+            if (selectedForTouch) {
+                // Simulate drop logic
+                const targetType = this.dataset.target;
+                const wordType = selectedForTouch.dataset.type;
+                const currentContainer = selectedForTouch.parentElement;
+
+                if (currentContainer === this) {
+                     selectedForTouch.classList.remove('ring-4', 'ring-blue-400');
+                     selectedForTouch = null;
+                     return;
+                }
+
+                if (targetType === 'bank') {
+                    resetWordStyling(selectedForTouch);
+                    this.appendChild(selectedForTouch);
+                    updateScore(-1);
+                } else if (targetType === 'short' || targetType === 'long') {
+                    if (targetType === wordType) {
+                        markCorrect(selectedForTouch);
+                        this.appendChild(selectedForTouch);
+                        if (currentContainer.id === 'word-bank') updateScore(1);
+                    } else {
+                        markIncorrect(selectedForTouch);
+                        this.appendChild(selectedForTouch);
+                        const elToMove = selectedForTouch;
+                        setTimeout(() => {
+                            resetWordStyling(elToMove);
+                            wordBank.appendChild(elToMove);
+                        }, 500);
+                    }
+                }
+                
+                selectedForTouch.classList.remove('ring-4', 'ring-blue-400');
+                selectedForTouch = null;
+                checkWinCondition();
+            }
+        });
+    });
+
+    // --- Confetti Logic (Simple Canvas Implementation) ---
+    function fireConfetti() {
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const pieces = [];
+        const colors = ['#fce18a', '#ff726d', '#b48def', '#f4306d'];
+
+        for (let i = 0; i < 100; i++) {
+            pieces.push({
+                x: canvas.width / 2,
+                y: canvas.height / 2 + (Math.random() * 200 - 100),
+                vx: (Math.random() - 0.5) * 20,
+                vy: (Math.random() - 1) * 20 - 5,
+                size: Math.random() * 10 + 5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 10
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let active = false;
+            
+            pieces.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.5; // gravity
+                p.rotation += p.rotationSpeed;
+
+                if (p.y < canvas.height) active = true;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation * Math.PI / 180);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+            });
+
+            if (active) {
+                requestAnimationFrame(animate);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+        animate();
+    }
+
+    // Handle resize for confetti canvas
+    window.addEventListener('resize', () => {
+        const canvas = document.getElementById('confetti-canvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    // --- Setup Event Listeners ---
+    resetBtn.addEventListener('click', initGame);
+
+    // --- Start Game ---
+    initGame();
+
+</script>
+</body>
+</html>
